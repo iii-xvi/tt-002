@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="stylesheet" href="https://unpkg.com/terminal.css@0.7.1/dist/terminal.min.css"/>
+    <script src="https://cdn.jsdelivr.net/npm/vue"></script>
+    <meta charset="UTF-8">
+    <title>ResultDisplay</title>
+    <style> .container { --page-width: 90em;} </style>
+</head>
+<body class="terminal">
+<div class="container" id="app">
+    <div class="terminal-nav">
+        <div class="terminal-logo">
+            <div class="logo terminal-prompt"><a href="#" class="no-style">
+                ResultDisplay<span v-show="resultAvailable"> at {{stampToStr(result.atTime)}}</span>
+            </a></div>
+        </div>
+        <nav class="terminal-menu">
+            <ul>
+                <li><div class="menu-item">Filter by name</div></li>
+                <li><input v-model="filterInput" type="text" placeholder="All" v-on:keyup.enter="onKeyup"></li>
+            </ul>
+        </nav>
+    </div>
+    <div>
+        <table v-show="resultAvailable">
+            <thead>
+            <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Score</th>
+                <th>Status</th>
+                <th>Date</th>
+            </tr>
+            </thead>
+            <tbody>
+            <template v-for="section in result.sections">
+                <tr>
+                    <th colspan="5">{{ section.name }}</th>
+                </tr>
+                <tr v-for="ev_id in section.events" :key="ev_id">
+                    <th>{{ ev_id }}</th>
+                    <td>{{ result.events[ev_id].name }}</td>
+                    <td>{{ result.events[ev_id].score }}</td>
+                    <td>{{ statusIdToStr(result.events[ev_id].status) }}</td>
+                    <td>{{ stampToStr(result.events[ev_id].startTime) }}</td>
+                </tr>
+            </template>
+
+            </tbody>
+        </table>
+        <div v-show="!resultAvailable" class="terminal-alert">
+            <span v-if="resultIsLoading">Data is loading...</span>
+            <span v-else>No data available 😢</span>
+        </div>
+    </div>
+    <footer>
+        <p>With ❤️ by iii-xvi</p>
+    </footer>
+</div>
+<script>
+    // I'm not web developer, i know this is not beautiful/efficient code
+    // use vue first time
+
+    var app = new Vue({
+        el: '#app',
+        data: {
+            resultIsLoading: false,
+            result: {},
+            filterInput: "",
+        },
+        computed: {
+            resultAvailable: function () {
+                return Object.keys(this.result).length > 0;
+            }
+        },
+        methods: {
+            statusIdToStr: function (status_id) {
+                return {
+                    "0": "Canceled",
+                    "2": "Live",
+                    "3": "Finished",
+                    "8": "Finished"
+                }[status_id];
+            },
+
+            stampToStr: function (stamp) {
+                return (new Date(stamp * 1000).toLocaleDateString('en'))
+            },
+
+            onKeyup: function (event) {
+                let vue_this = this;
+                vue_this.resultIsLoading = true;
+                vue_this.result = {};
+
+                setTimeout(() => {
+                    var xhr = new XMLHttpRequest();
+                    xhr.open("POST", "/api/search/", true);
+                    xhr.setRequestHeader('Content-Type', 'application/json');
+                    xhr.onload = function() {
+                        vue_this.result = JSON.parse(this.responseText);
+                        vue_this.resultIsLoading = false;
+                    }
+                    xhr.send(JSON.stringify({q: vue_this.filterInput}));
+
+                });
+            },
+        },
+        mounted: function() {
+            // fetch all results at startup
+            this.onKeyup();
+        }
+
+    })
+</script>
+</body>
+</html>
